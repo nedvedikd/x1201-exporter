@@ -25,7 +25,7 @@ class X1201Metrics:
     def _read_word_data(self, register: int) -> int:
         return self._bus.read_word_data(self._address, register)
 
-    def read_voltage_and_capacity(self) -> BatteryReading:
+    def read_battery(self) -> BatteryReading:
         voltage_read = self._read_word_data(2)
         capacity_read = self._read_word_data(4)
 

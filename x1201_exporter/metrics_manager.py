@@ -24,7 +24,7 @@ class X1201PrometheusMetricsManager:
         self._x1201_metrics = X1201Metrics()
 
     def _update_metrics(self) -> None:
-        battery_reading = self._x1201_metrics.read_voltage_and_capacity()
+        battery_reading = self._x1201_metrics.read_battery()
         self._battery_voltage_gauge.set(battery_reading.voltage)
         self._battery_capacity_gauge.set(battery_reading.capacity)
 
