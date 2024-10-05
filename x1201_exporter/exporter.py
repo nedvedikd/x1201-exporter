@@ -20,13 +20,16 @@ X1201_BATTERY_VOLTAGE_GAUGE = Gauge(
 X1201_BATTERY_CAPACITY_GAUGE = Gauge(
     "x1201_battery_capacity", "X1201 Battery Capacity", registry=registry
 )
+X1201_POWER_STATE = Gauge("x1201_power_state", "X1201 Power State", registry=registry)
 
 
 def update_metrics() -> None:
     battery_reading = x1201_metrics.read_voltage_and_capacity()
-
     X1201_BATTERY_VOLTAGE_GAUGE.set(battery_reading.voltage)
     X1201_BATTERY_CAPACITY_GAUGE.set(battery_reading.capacity)
+
+    power_state = x1201_metrics.get_power_state()
+    X1201_POWER_STATE.set(power_state)
 
 
 @app.get("/metrics")
