@@ -1,39 +1,13 @@
 from fastapi import FastAPI, Response
-from prometheus_client import (
-    CONTENT_TYPE_LATEST,
-    CollectorRegistry,
-    Gauge,
-    generate_latest,
-)
+from prometheus_client import CONTENT_TYPE_LATEST
 
-from x1201_exporter.x1201 import X1201Metrics
+from x1201_exporter.metrics_manager import X1201PrometheusMetricsManager
 
 app = FastAPI()
-
-registry = CollectorRegistry()
-
-x1201_metrics = X1201Metrics()
-
-X1201_BATTERY_VOLTAGE_GAUGE = Gauge(
-    "x1201_battery_voltage", "X1201 Battery Voltage", registry=registry
-)
-X1201_BATTERY_CAPACITY_GAUGE = Gauge(
-    "x1201_battery_capacity", "X1201 Battery Capacity", registry=registry
-)
-X1201_POWER_STATE = Gauge("x1201_power_state", "X1201 Power State", registry=registry)
-
-
-def update_metrics() -> None:
-    battery_reading = x1201_metrics.read_voltage_and_capacity()
-    X1201_BATTERY_VOLTAGE_GAUGE.set(battery_reading.voltage)
-    X1201_BATTERY_CAPACITY_GAUGE.set(battery_reading.capacity)
-
-    power_state = x1201_metrics.get_power_state()
-    X1201_POWER_STATE.set(power_state)
+metrics_manager = X1201PrometheusMetricsManager()
 
 
 @app.get("/metrics")
 async def metrics():
-    update_metrics()
-    metrics_data = generate_latest(registry)
+    metrics_data = metrics_manager.get_metrics()
     return Response(content=metrics_data, media_type=CONTENT_TYPE_LATEST)
