@@ -8,6 +8,9 @@ Exports 3 metrics:
  - Power State (`x1201_power_state`)
 
 
+## Metrics visualized in Grafana
+![Screenshot of x1201 metrics being used in Grafana](docs/grafana-screenshot.png)
+
 ## Example with Prometheus
 
 docker-compose.yml:
