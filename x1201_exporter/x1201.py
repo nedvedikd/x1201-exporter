@@ -32,6 +32,12 @@ class X1201Metrics:
         [voltage_swapped] = struct.unpack("<H", struct.pack(">H", voltage_read))
         [capacity_swapped] = struct.unpack("<H", struct.pack(">H", capacity_read))
 
+        # X1201 is using MAX17043 chip for determining battery state
+        # the formula below converts the raw I2C reading to the actual voltage
+        # - each LSB in the reading represents 1.25mV (from the MAX17043 datasheet)
+        # - multiply by 1.25 to get the value in millivolts
+        # - divide by 1000 to convert millivolts to volts
+        # - divide by 16 - this is a tricky part, I'm not sure why there is a x16 scaling factor
         voltage = voltage_swapped * 1.25 / 1000 / 16
         capacity = capacity_swapped / 256
 
