@@ -1,6 +1,6 @@
 # x1201-exporter
 
-Lightweight Prometheus Metrics Exporter for the X1201 UPS HAT for Raspberry Pi 5
+A lightweight Prometheus metrics exporter for the X1201 UPS HAT on the Raspberry Pi 5
 
 Exports 3 metrics:
  - Battery Voltage (`x1201_battery_voltage`)
