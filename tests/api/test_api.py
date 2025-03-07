@@ -1,17 +1,19 @@
 import urllib.parse
 
+import pytest
 import requests
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://localhost:8080"
 
 
+@pytest.mark.api
 def test_metrics_endpoint() -> None:
     endpoint = "/metrics"
     url = urllib.parse.urljoin(BASE_URL, endpoint)
 
     response = requests.get(url)
 
-    assert response.status_code == requests.codes.get("✓")
+    assert response.status_code == 200
 
     body = response.text
 

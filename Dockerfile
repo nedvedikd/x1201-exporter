@@ -1,28 +1,31 @@
 ############################################
-# REQUIREMENTS STAGE
+# BASE
 ############################################
-FROM python:3.12-alpine3.20 AS requirements-stage
+FROM python:3.12-alpine3.20 AS base
 
-WORKDIR /tmp
+ARG POETRY_VERSION="2.1.1"
 
-RUN pip install poetry
+WORKDIR /app
 
-COPY ./pyproject.toml ./poetry.lock /tmp/
+COPY ./pyproject.toml ./poetry.lock ./
 
-RUN poetry export -f requirements.txt --output requirements.txt --without-hashes
+RUN pip install --upgrade pip
+RUN pip install poetry==$POETRY_VERSION
 
 ############################################
-# BUILD STAGE
+# BUILD
 ############################################
-FROM python:3.12-alpine3.20 AS build
+FROM base AS build
 
-WORKDIR /code
+WORKDIR /app
 
-COPY --from=requirements-stage /tmp/requirements.txt /code/requirements.txt
+RUN poetry install --no-root --only main
 
-RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
+COPY ./x1201_exporter ./x1201_exporter
 
-COPY ./x1201_exporter /code/x1201_exporter
+COPY ./README.md ./README.md
+
+RUN poetry build
 
 ############################################
 # TEST STAGE
@@ -33,13 +36,24 @@ RUN apk update && apk add pre-commit git gcc python3-dev musl-dev
 
 RUN git init
 
-COPY .pre-commit-config.yaml /code
+COPY ./.pre-commit-config.yaml ./.pre-commit-config.yaml
+COPY ./pytest.ini ./pytest.ini
 
 RUN pre-commit run -a --show-diff-on-failure
+
+RUN pytest -v -m unit
 
 ############################################
 # PRODUCTION STAGE
 ############################################
-FROM build AS production
+FROM python:3.12-alpine3.20 AS production
+
+WORKDIR /app
+
+COPY --from=build /app/dist/*.whl ./
+
+RUN pip install --no-cache-dir ./*.whl
+
+RUN rm -rf /app
 
 ENTRYPOINT ["uvicorn", "x1201_exporter.exporter:app", "--host", "0.0.0.0", "--port", "80"]

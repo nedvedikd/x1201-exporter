@@ -1,6 +1,9 @@
+import pytest
+
 from x1201_exporter.x1201 import X1201Metrics
 
 
+@pytest.mark.unit
 def test_read_battery(mocker) -> None:
     metrics = X1201Metrics()
 
