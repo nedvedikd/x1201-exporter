@@ -18,7 +18,7 @@ FROM base AS build
 
 WORKDIR /app
 
-RUN poetry install --no-root --only main
+RUN poetry install --no-root
 
 COPY ./x1201_exporter ./x1201_exporter
 COPY ./README.md ./README.md
