@@ -9,8 +9,7 @@ WORKDIR /app
 
 COPY ./pyproject.toml ./poetry.lock ./
 
-RUN pip install --upgrade pip
-RUN pip install poetry==$POETRY_VERSION
+RUN pip install --upgrade pip && pip install poetry==$POETRY_VERSION
 
 ############################################
 # BUILD
@@ -22,7 +21,6 @@ WORKDIR /app
 RUN poetry install --no-root --only main
 
 COPY ./x1201_exporter ./x1201_exporter
-
 COPY ./README.md ./README.md
 
 RUN poetry build
@@ -32,7 +30,7 @@ RUN poetry build
 ############################################
 FROM build AS test
 
-RUN apk update && apk add pre-commit git gcc python3-dev musl-dev
+RUN apk add --no-cache pre-commit git gcc python3-dev musl-dev
 
 RUN git init
 
@@ -48,12 +46,10 @@ RUN pytest -v -m unit
 ############################################
 FROM python:3.12-alpine3.20 AS production
 
-WORKDIR /app
+COPY --from=build /app/dist/*.whl /app/
 
-COPY --from=build /app/dist/*.whl ./
+RUN pip install --no-cache-dir /app/*.whl
 
-RUN pip install --no-cache-dir ./*.whl
-
-RUN rm -rf /app
+EXPOSE 80
 
 ENTRYPOINT ["uvicorn", "x1201_exporter.exporter:app", "--host", "0.0.0.0", "--port", "80"]
