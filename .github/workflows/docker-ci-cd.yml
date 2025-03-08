@@ -1,0 +1,112 @@
+name: Docker Build, Test & Publish
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  IMAGE_NAME: nedvedikd/x1201-exporter
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Poetry
+        run: |
+          pip install --upgrade pip
+          pip install poetry
+
+      - name: Extract Base Version from `pyproject.toml`
+        id: version
+        run: |
+          BASE_VERSION=$(poetry version -s)
+          echo "BASE_VERSION=$BASE_VERSION" >> $GITHUB_ENV
+          echo "Base Version: $BASE_VERSION"
+
+      - name: Generate Version Tag (Dev or Release)
+        id: generate_version
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            COMMIT_SHA=$(git rev-parse --short HEAD)
+            BUILD_VERSION="${{ env.BASE_VERSION }}-${COMMIT_SHA}"
+          else
+            BUILD_VERSION="${{ env.BASE_VERSION }}"
+          fi
+          echo "BUILD_VERSION=$BUILD_VERSION" >> $GITHUB_ENV
+          echo "Docker Tag: $BUILD_VERSION"
+
+      - name: Build Docker Image (Including Test Stage)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: test-image
+          target: test
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Docker Test Stage
+        run: |
+          docker run --rm test-image
+
+  publish:
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ env.BUILD_VERSION }}
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:latest
+          cache-to: type=inline
+
+      - name: Print Docker Image Tag
+        run: |
+          echo "Built and pushed image: ${{ env.IMAGE_NAME }}:${{ env.BUILD_VERSION }}"
+
+
+  release:
+    needs: publish
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Create Git Tag
+        run: |
+          git tag -a v${{ env.BASE_VERSION }} -m "Release version ${{ env.BASE_VERSION }}"
+          git push origin v${{ env.BASE_VERSION }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.BASE_VERSION }}
+          name: Release ${{ env.BASE_VERSION }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
