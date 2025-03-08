@@ -15,14 +15,15 @@ class BatteryReading:
 class X1201Metrics:
     _address: int
     _pld_line: int
-    _bus: smbus2.SMBus
+    _bus: smbus2.SMBus | None
 
-    def __init__(self) -> None:
+    def __init__(self, testing: bool = False) -> None:
         self._address = 0x36
         self._pld_line = 6
-        self._bus = smbus2.SMBus(1)
+        self._bus = smbus2.SMBus(1) if not testing else None
 
     def _read_word_data(self, register: int) -> int:
+        assert self._bus, "uninitialized SMBus"
         return self._bus.read_word_data(self._address, register)
 
     def read_battery(self) -> BatteryReading:

@@ -32,14 +32,17 @@ FROM build AS test
 
 RUN apk add --no-cache pre-commit git gcc python3-dev musl-dev
 
+RUN poetry install --with dev
+
 RUN git init
 
 COPY ./.pre-commit-config.yaml ./.pre-commit-config.yaml
 COPY ./pytest.ini ./pytest.ini
+COPY ./tests ./tests
 
 RUN pre-commit run -a --show-diff-on-failure
 
-RUN pytest -v -m unit
+RUN poetry run pytest -v -m unit
 
 ############################################
 # PRODUCTION STAGE
