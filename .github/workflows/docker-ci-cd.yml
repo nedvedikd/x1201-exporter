@@ -53,7 +53,7 @@ jobs:
     needs: calculate-version
     runs-on: ubuntu-latest
     env:
-      BUILD_VERSION: ${{ needs.build-and-test.outputs.build_version }}
+      BUILD_VERSION: ${{ needs.calculate-version.outputs.build_version }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -74,10 +74,12 @@ jobs:
           docker run --rm test-image
 
   publish:
-    needs: test
+    needs:
+      - calculate-version
+      - test
     runs-on: ubuntu-latest
     env:
-      BUILD_VERSION: ${{ needs.build-and-test.outputs.build_version }}
+      BUILD_VERSION: ${{ needs.calculate-version.outputs.build_version }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
