@@ -74,7 +74,7 @@ jobs:
           docker run --rm test-image
 
   publish:
-    needs: calculate-version
+    needs: test
     runs-on: ubuntu-latest
     env:
       BUILD_VERSION: ${{ needs.build-and-test.outputs.build_version }}
