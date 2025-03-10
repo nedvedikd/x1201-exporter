@@ -11,6 +11,7 @@ on:
 
 env:
   IMAGE_NAME: nedvedikd/x1201-exporter
+  BUILD_VERSION: "dev"
 
 jobs:
   build-and-test:
@@ -60,7 +61,6 @@ jobs:
 
   publish:
     needs: build-and-test
-    # if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
