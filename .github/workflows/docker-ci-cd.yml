@@ -39,7 +39,7 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             COMMIT_SHA=$(git rev-parse --short HEAD)
-            BUILD_VERSION="${{ env.BASE_VERSION }}-${COMMIT_SHA}"
+            BUILD_VERSION="${{ env.BASE_VERSION }}-dev.${COMMIT_SHA}"
           else
             BUILD_VERSION="${{ env.BASE_VERSION }}"
           fi
