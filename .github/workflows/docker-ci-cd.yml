@@ -1,0 +1,114 @@
+name: Docker Build, Test & Publish
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: nedvedikd/x1201-exporter
+
+jobs:
+  calculate-version:
+    runs-on: ubuntu-latest
+    outputs:
+      build_version: ${{ steps.generate_version.outputs.build_version }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install Poetry
+        run: |
+          pip install --upgrade pip
+          pip install poetry
+
+      - name: Extract Base Version from `pyproject.toml`
+        id: version
+        run: |
+          BASE_VERSION=$(poetry version -s)
+          echo "BASE_VERSION=$BASE_VERSION" >> $GITHUB_ENV
+          echo "Base Version: $BASE_VERSION"
+
+      - name: Generate Version Tag (Dev or Release)
+        id: generate_version
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            COMMIT_SHA=$(git rev-parse --short HEAD)
+            BUILD_VERSION="${{ env.BASE_VERSION }}-dev.${COMMIT_SHA}"
+          else
+            BUILD_VERSION="${{ env.BASE_VERSION }}"
+          fi
+          echo "build_version=$BUILD_VERSION" >> $GITHUB_OUTPUT
+          echo "Docker Tag: $BUILD_VERSION"
+
+
+  test:
+    needs: calculate-version
+    runs-on: ubuntu-latest
+    env:
+      BUILD_VERSION: ${{ needs.calculate-version.outputs.build_version }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker Image (Including Test Stage)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: test-image
+          target: test
+
+      - name: Run Docker Test Stage
+        run: |
+          docker run --rm test-image
+
+  publish:
+    needs:
+      - calculate-version
+      - test
+    runs-on: ubuntu-latest
+    env:
+      BUILD_VERSION: ${{ needs.calculate-version.outputs.build_version }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          platforms: linux/arm64/v8
+          target: production
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ env.BUILD_VERSION }}
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:latest
+          cache-to: type=inline
+
+      - name: Print Docker Image Tag
+        run: |
+          echo "Built and pushed image: ${{ env.IMAGE_NAME }}:${{ env.BUILD_VERSION }}"

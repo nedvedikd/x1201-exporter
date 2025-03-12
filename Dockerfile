@@ -1,45 +1,58 @@
 ############################################
-# REQUIREMENTS STAGE
+# BASE
 ############################################
-FROM python:3.12-alpine3.20 AS requirements-stage
+FROM python:3.12-alpine3.20 AS base
 
-WORKDIR /tmp
+ARG POETRY_VERSION="2.1.1"
 
-RUN pip install poetry
+WORKDIR /app
 
-COPY ./pyproject.toml ./poetry.lock /tmp/
+COPY ./pyproject.toml ./poetry.lock ./
 
-RUN poetry export -f requirements.txt --output requirements.txt --without-hashes
+RUN pip install --upgrade pip && pip install poetry==$POETRY_VERSION
 
 ############################################
-# BUILD STAGE
+# BUILD
 ############################################
-FROM python:3.12-alpine3.20 AS build
+FROM base AS build
 
-WORKDIR /code
+WORKDIR /app
 
-COPY --from=requirements-stage /tmp/requirements.txt /code/requirements.txt
+RUN poetry install --no-root
 
-RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
+COPY ./x1201_exporter ./x1201_exporter
+COPY ./README.md ./README.md
 
-COPY ./x1201_exporter /code/x1201_exporter
+RUN poetry build
 
 ############################################
 # TEST STAGE
 ############################################
 FROM build AS test
 
-RUN apk update && apk add pre-commit git gcc python3-dev musl-dev
+RUN apk add --no-cache pre-commit git gcc python3-dev musl-dev
+
+RUN poetry install --with dev
 
 RUN git init
 
-COPY .pre-commit-config.yaml /code
+COPY ./.pre-commit-config.yaml ./.pre-commit-config.yaml
+COPY ./pytest.ini ./pytest.ini
+COPY ./tests ./tests
 
 RUN pre-commit run -a --show-diff-on-failure
+
+RUN poetry run pytest -v -m unit
 
 ############################################
 # PRODUCTION STAGE
 ############################################
-FROM build AS production
+FROM python:3.12-alpine3.20 AS production
+
+COPY --from=build /app/dist/*.whl /app/
+
+RUN pip install --no-cache-dir /app/*.whl
+
+EXPOSE 80
 
 ENTRYPOINT ["uvicorn", "x1201_exporter.exporter:app", "--host", "0.0.0.0", "--port", "80"]
